@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hello World App Icon Generator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        .icon-container {
+            width: 512px;
+            height: 512px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 4px solid #dee2e6;
+            position: relative;
+            margin: 20px auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .hello-text {
+            font-size: 70px;
+            font-weight: bold;
+            color: #FF3B30;
+            text-shadow: 2px 3px 4px rgba(0,0,0,0.15);
+            transform: rotate(-8deg);
+            margin-top: -30px;
+            font-family: 'Comic Sans MS', cursive, Arial, sans-serif;
+        }
+        .world-text {
+            font-size: 70px;
+            font-weight: bold;
+            color: #007AFF;
+            text-shadow: 2px 3px 4px rgba(0,0,0,0.15);
+            transform: rotate(5deg);
+            margin-top: -15px;
+            font-family: 'Comic Sans MS', cursive, Arial, sans-serif;
+        }
+        .sparkle {
+            position: absolute;
+            color: #FFD700;
+            font-size: 20px;
+            opacity: 0.8;
+        }
+        .sparkle1 { top: 80px; left: 80px; transform: rotate(15deg); }
+        .sparkle2 { top: 70px; right: 80px; transform: rotate(-20deg); }
+        .sparkle3 { bottom: 100px; left: 70px; transform: rotate(25deg); }
+        .sparkle4 { bottom: 80px; right: 70px; transform: rotate(-15deg); }
+        .heart {
+            position: absolute;
+            color: #FF69B4;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        .heart1 { top: 150px; left: 100px; transform: rotate(10deg); }
+        .heart2 { bottom: 140px; right: 100px; transform: rotate(-12deg); }
+        canvas {
+            border: 2px solid #ccc;
+            margin: 20px auto;
+            display: block;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Hello World App Icon Generator</h1>
+    
+    <div class="icon-container" id="iconPreview">
+        <div class="sparkle sparkle1">✨</div>
+        <div class="sparkle sparkle2">⭐</div>
+        <div class="hello-text">Hello</div>
+        <div class="world-text">World</div>
+        <div class="sparkle sparkle3">✨</div>
+        <div class="sparkle sparkle4">⭐</div>
+        <div class="heart heart1">💖</div>
+        <div class="heart heart2">💖</div>
+    </div>
+    
+    <canvas id="iconCanvas" width="1024" height="1024"></canvas>
+    <button onclick="generateIcon()">Generate 1024x1024 PNG Icon</button>
+    <button onclick="downloadIcon()">Download Icon</button>
+    
+    <script>
+        function generateIcon() {
+            const canvas = document.getElementById('iconCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, 1024, 1024);
+            
+            // Create gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 1024, 1024);
+            gradient.addColorStop(0, '#f8f9fa');
+            gradient.addColorStop(1, '#e9ecef');
+            
+            // Draw circular background
+            ctx.beginPath();
+            ctx.arc(512, 512, 480, 0, 2 * Math.PI);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Draw border
+            ctx.beginPath();
+            ctx.arc(512, 512, 480, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#dee2e6';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+            
+            // Set shadow
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetX = 4;
+            ctx.shadowOffsetY = 6;
+            
+            // Draw "Hello" text
+            ctx.save();
+            ctx.translate(512, 420);
+            ctx.rotate(-0.15); // -8 degrees
+            ctx.font = 'bold 140px Arial, sans-serif';
+            ctx.fillStyle = '#FF3B30';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Hello', 0, 0);
+            ctx.restore();
+            
+            // Draw "World" text
+            ctx.save();
+            ctx.translate(512, 580);
+            ctx.rotate(0.08); // 5 degrees
+            ctx.font = 'bold 140px Arial, sans-serif';
+            ctx.fillStyle = '#007AFF';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('World', 0, 0);
+            ctx.restore();
+            
+            // Reset shadow
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            
+            // Draw sparkles
+            ctx.font = '40px Arial';
+            ctx.fillStyle = '#FFD700';
+            
+            ctx.save();
+            ctx.translate(180, 200);
+            ctx.rotate(0.3);
+            ctx.fillText('✨', 0, 0);
+            ctx.restore();
+            
+            ctx.save();
+            ctx.translate(844, 180);
+            ctx.rotate(-0.4);
+            ctx.fillText('⭐', 0, 0);
+            ctx.restore();
+            
+            ctx.save();
+            ctx.translate(160, 780);
+            ctx.rotate(0.5);
+            ctx.fillText('✨', 0, 0);
+            ctx.restore();
+            
+            ctx.save();
+            ctx.translate(860, 820);
+            ctx.rotate(-0.3);
+            ctx.fillText('⭐', 0, 0);
+            ctx.restore();
+            
+            // Draw hearts
+            ctx.font = '25px Arial';
+            ctx.fillStyle = 'rgba(255, 105, 180, 0.6)';
+            
+            ctx.save();
+            ctx.translate(240, 340);
+            ctx.rotate(0.2);
+            ctx.fillText('💖', 0, 0);
+            ctx.restore();
+            
+            ctx.save();
+            ctx.translate(780, 680);
+            ctx.rotate(-0.2);
+            ctx.fillText('💖', 0, 0);
+            ctx.restore();
+        }
+        
+        function downloadIcon() {
+            const canvas = document.getElementById('iconCanvas');
+            const link = document.createElement('a');
+            link.download = 'hello_world_icon.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Generate icon on page load
+        window.onload = function() {
+            generateIcon();
+        };
+    </script>
+</body>
+</html>

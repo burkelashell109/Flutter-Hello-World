@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with subtle gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f9fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e9ecef;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <dropShadow dx="4" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="512" cy="512" r="480" fill="url(#bgGradient)" stroke="#dee2e6" stroke-width="8"/>
+  
+  <!-- "Hello" text in red -->
+  <text x="512" y="420" 
+        font-family="Arial, sans-serif" 
+        font-size="140" 
+        font-weight="bold" 
+        text-anchor="middle" 
+        fill="#FF3B30" 
+        filter="url(#shadow)"
+        transform="rotate(-8 512 420)">Hello</text>
+  
+  <!-- "World" text in blue -->
+  <text x="512" y="580" 
+        font-family="Arial, sans-serif" 
+        font-size="140" 
+        font-weight="bold" 
+        text-anchor="middle" 
+        fill="#007AFF" 
+        filter="url(#shadow)"
+        transform="rotate(5 512 580)">World</text>
+  
+  <!-- Playful sparkles -->
+  <g fill="#FFD700" opacity="0.8">
+    <!-- Top left sparkle -->
+    <polygon points="180,200 185,210 195,210 187,218 190,228 180,222 170,228 173,218 165,210 175,210" transform="rotate(15 180 214)"/>
+    <!-- Top right sparkle -->
+    <polygon points="844,180 849,190 859,190 851,198 854,208 844,202 834,208 837,198 829,190 839,190" transform="rotate(-20 844 194)"/>
+    <!-- Bottom left sparkle -->
+    <polygon points="160,780 165,790 175,790 167,798 170,808 160,802 150,808 153,798 145,790 155,790" transform="rotate(25 160 794)"/>
+    <!-- Bottom right sparkle -->
+    <polygon points="860,820 865,830 875,830 867,838 870,848 860,842 850,848 853,838 845,830 855,830" transform="rotate(-15 860 834)"/>
+  </g>
+  
+  <!-- Small hearts for extra playfulness -->
+  <g fill="#FF69B4" opacity="0.6">
+    <path d="M 240 340 C 240 325, 255 310, 270 310 C 285 310, 300 325, 300 340 C 300 355, 270 385, 270 385 C 270 385, 240 355, 240 340 Z" transform="scale(0.6) rotate(10 270 347.5)"/>
+    <path d="M 740 680 C 740 665, 755 650, 770 650 C 785 650, 800 665, 800 680 C 800 695, 770 725, 770 725 C 770 725, 740 695, 740 680 Z" transform="scale(0.7) rotate(-12 770 687.5)"/>
+  </g>
+</svg>
