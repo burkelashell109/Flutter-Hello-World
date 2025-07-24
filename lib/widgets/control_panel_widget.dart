@@ -149,27 +149,14 @@ class ControlPanelWidget extends StatelessWidget {
   }
 
   Widget _buildBottomSheetHeader(ThemeData theme) {
-    final isExpanded = state.drawerSize > 0.15;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text(
           'Controls',
           style: theme.textTheme.headlineSmall?.copyWith(
             color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.w600,
-          ),
-        ),
-        FilledButton.tonalIcon(
-          onPressed: callbacks.onToggleDrawer,
-          icon: Icon(
-            isExpanded 
-                ? Icons.expand_more_rounded 
-                : Icons.expand_less_rounded,
-          ),
-          label: Text(isExpanded ? 'Collapse' : 'Expand'),
-          style: FilledButton.styleFrom(
-            visualDensity: VisualDensity.compact,
           ),
         ),
       ],
