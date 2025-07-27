@@ -1,0 +1,7 @@
+[
+  {
+    "key": "ctrl+shift+t",
+    "command": "testing.toggleContinuousRun",
+    "when": "editorTextFocus"
+  }
+]

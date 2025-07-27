@@ -1,0 +1,8 @@
+{
+  "testing.automaticallyOpenPeekView": "failureInVisibleDocument",
+  "testing.automaticallyOpenPeekViewDuringAutoRun": false,
+  "testing.followRunningTest": true,
+  "dart.runTestsAutomatically": true,
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true
+}
