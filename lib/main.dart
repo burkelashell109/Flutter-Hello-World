@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'models/text_properties.dart';
 import 'controllers/text_animation_controller.dart';
@@ -6,19 +7,49 @@ import 'widgets/control_panel_widget.dart';
 import 'utils/text_utils.dart';
 
 void main() {
-  runApp(
-    MaterialApp(
+  runZonedGuarded(() {
+    runApp(const MyApp());
+  }, (error, stackTrace) {
+    // Log errors to help with debugging
+    debugPrint('Application error: $error');
+    debugPrint('Stack trace: $stackTrace');
+  });
+}
+
+/// Root application widget with comprehensive error handling
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
-      ),
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
+      themeMode: ThemeMode.system,
       home: const MovingTextApp(),
-    ),
-  );
+    );
+  }
+
+  ThemeData _buildLightTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF2196F3),
+        brightness: Brightness.light,
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF2196F3),
+        brightness: Brightness.dark,
+      ),
+    );
+  }
 }
 
 /// Main application widget with refactored, maintainable code structure
@@ -45,39 +76,132 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   bool _isResetting = false;
   bool _isPanelVisible = false;
   Size? _lastScreenSize;
+  
+  // Error tracking for better stability
+  String? _initializationError;
+  int _initializationRetryCount = 0;
+  static const int _maxInitializationRetries = 5;
 
   @override
   void initState() {
     super.initState();
-    _initializeControllers();
-    _initializeState();
-    _scheduleInitialization();
+    try {
+      _initializeControllers();
+      _initializeState();
+      _scheduleInitialization();
+    } catch (e, stackTrace) {
+      debugPrint('Initialization error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _handleInitializationError(e);
+    }
+  }
+
+  /// Input validation helper methods for security and stability
+  
+  /// Validate and clamp font index with bounds checking
+  int _validateFontIndex(int index) {
+    if (index < 0 || index >= ControlPanelConfig.fontOptions.length) {
+      debugPrint('Invalid font index: $index, using default: 0');
+      return 0;
+    }
+    return index;
+  }
+
+  /// Validate and clamp font size
+  double _validateFontSize(double size) {
+    if (size.isNaN || size.isInfinite || size <= 0) {
+      debugPrint('Invalid font size: $size, using default: 72.0');
+      return 72.0;
+    }
+    return size.clamp(ControlPanelConfig.minFontSize, ControlPanelConfig.maxFontSize);
+  }
+
+  /// Validate speed input with comprehensive checking
+  double _validateSpeed(double speed) {
+    if (speed.isNaN || speed.isInfinite) {
+      debugPrint('Invalid speed value: $speed, using 0.0');
+      return 0.0;
+    }
+    return speed.clamp(ControlPanelConfig.minSpeed, ControlPanelConfig.maxSpeed);
+  }
+
+  /// Validate drawer size with bounds checking
+  double _validateDrawerSize(double size) {
+    if (size.isNaN || size.isInfinite) {
+      debugPrint('Invalid drawer size: $size, using 0.05');
+      return 0.05;
+    }
+    return size.clamp(0.0, 1.0);
+  }
+
+  /// Get font family with safe array access
+  String? _getSafeFontFamily(int index) {
+    final validatedIndex = _validateFontIndex(index);
+    return ControlPanelConfig.fontOptions[validatedIndex];
+  }
+
+  /// Validate screen size with comprehensive checks
+  bool _validateScreenSize(Size size) {
+    return size.width > 0 && 
+           size.height > 0 && 
+           size.width.isFinite && 
+           size.height.isFinite &&
+           size.width < double.maxFinite &&
+           size.height < double.maxFinite;
+  }
+
+  /// Show error message to user
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Handle initialization errors with user feedback
+  void _handleInitializationError(Object error) {
+    if (!mounted) return;
+    
+    setState(() {
+      _initializationError = error.toString();
+    });
+    
+    _showErrorSnackBar('Initialization failed: ${error.toString()}');
   }
 
   void _initializeControllers() {
-    _animationController = TextAnimationController(vsync: this);
-    _animationController.onUpdate = () => setState(() {});
-    _sheetController = DraggableScrollableController();
-    
-    // Initialize reset animation controller
-    _resetAnimationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-    _resetProgress = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _resetAnimationController,
-      curve: Curves.easeInOut,
-    ));
-    
-    // Keep sheet size in sync with controller
-    _sheetController.addListener(() {
-      if (_sheetController.isAttached) {
-        _sheetSize.value = _sheetController.size;
-      }
-    });
+    try {
+      _animationController = TextAnimationController(vsync: this);
+      _animationController.onUpdate = () => setState(() {});
+      _sheetController = DraggableScrollableController();
+      
+      // Initialize reset animation controller
+      _resetAnimationController = AnimationController(
+        duration: const Duration(seconds: 2),
+        vsync: this,
+      );
+      _resetProgress = Tween<double>(
+        begin: 0.0,
+        end: 1.0,
+      ).animate(CurvedAnimation(
+        parent: _resetAnimationController,
+        curve: Curves.easeInOut,
+      ));
+      
+      // Keep sheet size in sync with controller
+      _sheetController.addListener(() {
+        if (_sheetController.isAttached) {
+          _sheetSize.value = _sheetController.size;
+        }
+      });
+    } catch (e) {
+      throw Exception('Failed to initialize controllers: $e');
+    }
   }
 
   void _initializeState() {
@@ -97,150 +221,243 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     // This ensures we have valid screen dimensions before positioning text
   }
 
+  /// Initialize text positions with comprehensive validation and error handling
   void _initializeTextPositions() {
-    final size = MediaQuery.of(context).size;
+    if (!mounted) return;
     
-    // Ensure we have a valid screen size
-    if (size.width <= 0 || size.height <= 0) {
-      // Try again after another frame
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_isInitialized) {
-          _initializeTextPositions();
-        }
+    try {
+      final size = MediaQuery.of(context).size;
+      
+      // Validate screen dimensions with comprehensive checks
+      if (!_validateScreenSize(size)) {
+        _scheduleRetryInitialization();
+        return;
+      }
+      
+      final textConfig = _createCurrentTextConfig();
+      final textWidgets = _createInitialTextWidgets(size, textConfig);
+      
+      _animationController.initializeTextWidgets(textWidgets);
+      _animationController.updateTextConfig(textConfig);
+      
+      setState(() {
+        _isInitialized = true;
+        _initializationError = null;
       });
+      
+    } catch (e, stackTrace) {
+      debugPrint('Text initialization error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _handleTextInitializationError(e);
+    }
+  }
+
+  /// Schedule retry initialization with exponential backoff
+  void _scheduleRetryInitialization() {
+    if (_initializationRetryCount >= _maxInitializationRetries) {
+      debugPrint('Max initialization retries reached');
+      _handleTextInitializationError('Screen size unavailable after maximum retries');
       return;
     }
     
-    final textConfig = TextConfig(
-      fontSize: _controlState.fontSize,
-      fontFamily: ControlPanelConfig.fontOptions[_controlState.selectedFontIndex],
+    _initializationRetryCount++;
+    final delay = Duration(milliseconds: 200 * _initializationRetryCount);
+    
+    Timer(delay, () {
+      if (mounted && !_isInitialized) {
+        _initializeTextPositions();
+      }
+    });
+  }
+
+  /// Create text config with input validation and bounds checking
+  TextConfig _createCurrentTextConfig() {
+    final safeSelectedFontIndex = _validateFontIndex(_controlState.selectedFontIndex);
+    final safeFontSize = _validateFontSize(_controlState.fontSize);
+    
+    return TextConfig(
+      fontSize: safeFontSize,
+      fontFamily: _getSafeFontFamily(safeSelectedFontIndex),
       isBold: _controlState.isBold,
     );
-    
+  }
+
+  /// Create initial text widgets with position validation
+  List<TextProperties> _createInitialTextWidgets(Size screenSize, TextConfig textConfig) {
     final helloSize = TextUtils.measureText('Hello', textConfig.textStyle);
     final worldSize = TextUtils.measureText('World!', textConfig.textStyle);
     
     final positions = TextUtils.calculateCenteredPositions(
-      screenSize: size,
+      screenSize: screenSize,
       helloSize: helloSize,
       worldSize: worldSize,
     );
     
-    // Safety check: Ensure positions are valid (not negative, not off-screen)
-    final safeHelloX = positions['hello_x']!.clamp(0.0, size.width - helloSize.width);
-    final safeHelloY = positions['hello_y']!.clamp(0.0, size.height - helloSize.height);
-    final safeWorldX = positions['world_x']!.clamp(0.0, size.width - worldSize.width);
-    final safeWorldY = positions['world_y']!.clamp(0.0, size.height - worldSize.height);
+    // Validate and clamp positions with comprehensive bounds checking
+    final safePositions = _validateAndClampPositions(
+      positions, screenSize, helloSize, worldSize);
     
-    if (safeHelloX != positions['hello_x'] || safeHelloY != positions['hello_y'] ||
-        safeWorldX != positions['world_x'] || safeWorldY != positions['world_y']) {
-    }
-    
-    final textWidgets = [
+    return [
       TextProperties(
-        x: safeHelloX,
-        y: safeHelloY,
+        x: safePositions['hello_x']!,
+        y: safePositions['hello_y']!,
         dx: 0,
         dy: 0,
         text: 'Hello',
         color: _controlState.helloColor,
       ),
       TextProperties(
-        x: safeWorldX,
-        y: safeWorldY,
+        x: safePositions['world_x']!,
+        y: safePositions['world_y']!,
         dx: 0,
         dy: 0,
         text: 'World!',
         color: _controlState.worldColor,
       ),
     ];
-    
-    _animationController.initializeTextWidgets(textWidgets);
-    _animationController.updateTextConfig(textConfig);
-    
-    // Don't apply physics immediately - let text stay centered
-    setState(() {
-      _isInitialized = true;
-    });
   }
 
-  // Event handlers for control panel interactions
+  /// Validate and clamp positions with comprehensive safety checks
+  Map<String, double> _validateAndClampPositions(
+    Map<String, double> positions,
+    Size screenSize,
+    Size helloSize,
+    Size worldSize,
+  ) {
+    // Helper function to safely clamp positions
+    double safeClamp(double value, double min, double max) {
+      if (value.isNaN || value.isInfinite) {
+        return min;
+      }
+      return value.clamp(min, max);
+    }
+    
+    return {
+      'hello_x': safeClamp(
+        positions['hello_x'] ?? 0.0, 
+        0.0, 
+        (screenSize.width - helloSize.width).clamp(0.0, screenSize.width)
+      ),
+      'hello_y': safeClamp(
+        positions['hello_y'] ?? 0.0, 
+        0.0, 
+        (screenSize.height - helloSize.height).clamp(0.0, screenSize.height)
+      ),
+      'world_x': safeClamp(
+        positions['world_x'] ?? 0.0, 
+        0.0, 
+        (screenSize.width - worldSize.width).clamp(0.0, screenSize.width)
+      ),
+      'world_y': safeClamp(
+        positions['world_y'] ?? 0.0, 
+        0.0, 
+        (screenSize.height - worldSize.height).clamp(0.0, screenSize.height)
+      ),
+    };
+  }
+
+  /// Handle text initialization errors with user feedback
+  void _handleTextInitializationError(Object error) {
+    if (!mounted) return;
+    
+    debugPrint('Text initialization failed: $error');
+    setState(() {
+      _initializationError = error.toString();
+      _isInitialized = false;
+    });
+    
+    _showErrorSnackBar('Failed to initialize text: ${error.toString()}');
+  }
+
+  /// Update control state with comprehensive validation and error checking
+  void _updateControlState({
+    double? speed,
+    double? fontSize,
+    Color? helloColor,
+    Color? worldColor,
+    int? selectedFontIndex,
+    bool? isBold,
+    double? drawerSize,
+  }) {
+    if (!mounted) return;
+    
+    try {
+      _controlState = ControlPanelState(
+        speed: _validateSpeed(speed ?? _controlState.speed),
+        fontSize: _validateFontSize(fontSize ?? _controlState.fontSize),
+        helloColor: helloColor ?? _controlState.helloColor,
+        worldColor: worldColor ?? _controlState.worldColor,
+        selectedFontIndex: _validateFontIndex(selectedFontIndex ?? _controlState.selectedFontIndex),
+        isBold: isBold ?? _controlState.isBold,
+        drawerSize: _validateDrawerSize(drawerSize ?? _controlState.drawerSize),
+      );
+    } catch (e) {
+      debugPrint('Error updating control state: $e');
+      // Continue with current state if update fails
+    }
+  }
+
+  // Event handlers with comprehensive input validation and error handling
   void _handleSpeedChange(double newSpeed) {
-    _controlState = ControlPanelState(
-      speed: newSpeed,
-      fontSize: _controlState.fontSize,
-      helloColor: _controlState.helloColor,
-      worldColor: _controlState.worldColor,
-      selectedFontIndex: _controlState.selectedFontIndex,
-      isBold: _controlState.isBold,
-      drawerSize: _controlState.drawerSize,
-    );
-    _animationController.updateSpeed(newSpeed);
+    try {
+      final validatedSpeed = _validateSpeed(newSpeed);
+      _updateControlState(speed: validatedSpeed);
+      _animationController.updateSpeed(validatedSpeed);
+    } catch (e) {
+      debugPrint('Error handling speed change: $e');
+      _showErrorSnackBar('Failed to update speed: ${e.toString()}');
+    }
   }
 
   void _handleFontSizeChange(double newSize) {
-    _controlState = ControlPanelState(
-      speed: _controlState.speed,
-      fontSize: newSize,
-      helloColor: _controlState.helloColor,
-      worldColor: _controlState.worldColor,
-      selectedFontIndex: _controlState.selectedFontIndex,
-      isBold: _controlState.isBold,
-      drawerSize: _controlState.drawerSize,
-    );
-    _updateTextConfig();
+    try {
+      _updateControlState(fontSize: newSize);
+      _updateTextConfig();
+    } catch (e) {
+      debugPrint('Error handling font size change: $e');
+      _showErrorSnackBar('Failed to update font size: ${e.toString()}');
+    }
   }
 
   void _handleHelloColorChange(Color newColor) {
-    _controlState = ControlPanelState(
-      speed: _controlState.speed,
-      fontSize: _controlState.fontSize,
-      helloColor: newColor,
-      worldColor: _controlState.worldColor,
-      selectedFontIndex: _controlState.selectedFontIndex,
-      isBold: _controlState.isBold,
-      drawerSize: _controlState.drawerSize,
-    );
-    _animationController.updateTextColor(0, newColor);
+    try {
+      _updateControlState(helloColor: newColor);
+      _animationController.updateTextColor(0, newColor);
+    } catch (e) {
+      debugPrint('Error handling hello color change: $e');
+      _showErrorSnackBar('Failed to update hello color: ${e.toString()}');
+    }
   }
 
   void _handleWorldColorChange(Color newColor) {
-    _controlState = ControlPanelState(
-      speed: _controlState.speed,
-      fontSize: _controlState.fontSize,
-      helloColor: _controlState.helloColor,
-      worldColor: newColor,
-      selectedFontIndex: _controlState.selectedFontIndex,
-      isBold: _controlState.isBold,
-      drawerSize: _controlState.drawerSize,
-    );
-    _animationController.updateTextColor(1, newColor);
+    try {
+      _updateControlState(worldColor: newColor);
+      _animationController.updateTextColor(1, newColor);
+    } catch (e) {
+      debugPrint('Error handling world color change: $e');
+      _showErrorSnackBar('Failed to update world color: ${e.toString()}');
+    }
   }
 
   void _handleFontChange(int newIndex) {
-    _controlState = ControlPanelState(
-      speed: _controlState.speed,
-      fontSize: _controlState.fontSize,
-      helloColor: _controlState.helloColor,
-      worldColor: _controlState.worldColor,
-      selectedFontIndex: newIndex,
-      isBold: _controlState.isBold,
-      drawerSize: _controlState.drawerSize,
-    );
-    _updateTextConfig();
+    try {
+      final validatedIndex = _validateFontIndex(newIndex);
+      _updateControlState(selectedFontIndex: validatedIndex);
+      _updateTextConfig();
+    } catch (e) {
+      debugPrint('Error handling font change: $e');
+      _showErrorSnackBar('Failed to update font: ${e.toString()}');
+    }
   }
 
   void _handleBoldChange(bool newBold) {
-    _controlState = ControlPanelState(
-      speed: _controlState.speed,
-      fontSize: _controlState.fontSize,
-      helloColor: _controlState.helloColor,
-      worldColor: _controlState.worldColor,
-      selectedFontIndex: _controlState.selectedFontIndex,
-      isBold: newBold,
-      drawerSize: _controlState.drawerSize,
-    );
-    _updateTextConfig();
+    try {
+      _updateControlState(isBold: newBold);
+      _updateTextConfig();
+    } catch (e) {
+      debugPrint('Error handling bold change: $e');
+      _showErrorSnackBar('Failed to update bold setting: ${e.toString()}');
+    }
   }
 
   void _handleReset() {
@@ -384,91 +601,113 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   }
 
   void _updateTextConfig() {
-    final textConfig = TextConfig(
-      fontSize: _controlState.fontSize,
-      fontFamily: ControlPanelConfig.fontOptions[_controlState.selectedFontIndex],
-      isBold: _controlState.isBold,
-    );
-    
-    // Only update the text config, don't trigger repositioning during reset
-    if (!_isResetting) {
-      _animationController.updateTextConfig(textConfig);
-    } else {
-      // During reset, just update the internal config without triggering callbacks
-      _animationController.updateTextConfigSilent(textConfig);
+    try {
+      final validatedIndex = _validateFontIndex(_controlState.selectedFontIndex);
+      final safeFontFamily = _getSafeFontFamily(validatedIndex);
+      
+      final textConfig = TextConfig(
+        fontSize: _validateFontSize(_controlState.fontSize),
+        fontFamily: safeFontFamily,
+        isBold: _controlState.isBold,
+      );
+      
+      // Only update the text config, don't trigger repositioning during reset
+      if (!_isResetting) {
+        _animationController.updateTextConfig(textConfig);
+      } else {
+        // During reset, just update the internal config without triggering callbacks
+        _animationController.updateTextConfigSilent(textConfig);
+      }
+    } catch (e) {
+      debugPrint('Error updating text config: $e');
+      _showErrorSnackBar('Failed to update text configuration');
     }
   }
 
   void _initializeTextWithSize(Size screenSize) {
-    final textConfig = TextConfig(
-      fontSize: _controlState.fontSize,
-      fontFamily: ControlPanelConfig.fontOptions[_controlState.selectedFontIndex],
-      isBold: _controlState.isBold,
-    );
+    try {
+      if (!_validateScreenSize(screenSize)) {
+        throw Exception('Invalid screen size for text initialization');
+      }
+      
+      final textConfig = _createCurrentTextConfig();
+      final helloSize = TextUtils.measureText('Hello', textConfig.textStyle);
+      final worldSize = TextUtils.measureText('World!', textConfig.textStyle);
 
-    final helloSize = TextUtils.measureText('Hello', textConfig.textStyle);
-    final worldSize = TextUtils.measureText('World!', textConfig.textStyle);
+      final positions = TextUtils.calculateCenteredPositions(
+        screenSize: screenSize,
+        helloSize: helloSize,
+        worldSize: worldSize,
+      );
 
-    final positions = TextUtils.calculateCenteredPositions(
-      screenSize: screenSize,
-      helloSize: helloSize,
-      worldSize: worldSize,
-    );
+      final safePositions = _validateAndClampPositions(
+        positions, screenSize, helloSize, worldSize);
 
-    final textWidgets = [
-      TextProperties(
-        x: positions['hello_x']!,
-        y: positions['hello_y']!,
-        dx: 0,
-        dy: 0,
-        text: 'Hello',
-        color: _controlState.helloColor,
-      ),
-      TextProperties(
-        x: positions['world_x']!,
-        y: positions['world_y']!,
-        dx: 0,
-        dy: 0,
-        text: 'World!',
-        color: _controlState.worldColor,
-      ),
-    ];
+      final textWidgets = [
+        TextProperties(
+          x: safePositions['hello_x']!,
+          y: safePositions['hello_y']!,
+          dx: 0,
+          dy: 0,
+          text: 'Hello',
+          color: _controlState.helloColor,
+        ),
+        TextProperties(
+          x: safePositions['world_x']!,
+          y: safePositions['world_y']!,
+          dx: 0,
+          dy: 0,
+          text: 'World!',
+          color: _controlState.worldColor,
+        ),
+      ];
 
-    _animationController.initializeTextWidgets(textWidgets);
-    _animationController.updateTextConfig(textConfig);
+      _animationController.initializeTextWidgets(textWidgets);
+      _animationController.updateTextConfig(textConfig);
 
-    // Guarantee a rebuild after initialization
-    _isInitialized = true;
-    Future.microtask(() {
-      if (mounted) setState(() {});
-    });
+      // Guarantee a rebuild after initialization
+      _isInitialized = true;
+      Future.microtask(() {
+        if (mounted) setState(() {});
+      });
+    } catch (e) {
+      debugPrint('Error initializing text with size: $e');
+      _handleTextInitializationError(e);
+    }
   }
 
   void _repositionTextWithSize(Size screenSize) {
-    final textConfig = TextConfig(
-      fontSize: _controlState.fontSize,
-      fontFamily: ControlPanelConfig.fontOptions[_controlState.selectedFontIndex],
-      isBold: _controlState.isBold,
-    );
-    
-    final helloSize = TextUtils.measureText('Hello', textConfig.textStyle);
-    final worldSize = TextUtils.measureText('World!', textConfig.textStyle);
-    
-    final positions = TextUtils.calculateCenteredPositions(
-      screenSize: screenSize,
-      helloSize: helloSize,
-      worldSize: worldSize,
-    );
-    
-    // Update existing text widget positions
-    if (_animationController.textWidgets.length >= 2) {
-      _animationController.textWidgets[0].x = positions['hello_x']!;
-      _animationController.textWidgets[0].y = positions['hello_y']!;
-      _animationController.textWidgets[1].x = positions['world_x']!;
-      _animationController.textWidgets[1].y = positions['world_y']!;
+    try {
+      if (!_validateScreenSize(screenSize)) {
+        throw Exception('Invalid screen size for repositioning');
+      }
       
-      // Force a UI update
-      setState(() {});
+      final textConfig = _createCurrentTextConfig();
+      final helloSize = TextUtils.measureText('Hello', textConfig.textStyle);
+      final worldSize = TextUtils.measureText('World!', textConfig.textStyle);
+      
+      final positions = TextUtils.calculateCenteredPositions(
+        screenSize: screenSize,
+        helloSize: helloSize,
+        worldSize: worldSize,
+      );
+      
+      final safePositions = _validateAndClampPositions(
+        positions, screenSize, helloSize, worldSize);
+      
+      // Update existing text widget positions with validation
+      if (_animationController.textWidgets.length >= 2) {
+        _animationController.textWidgets[0].x = safePositions['hello_x']!;
+        _animationController.textWidgets[0].y = safePositions['hello_y']!;
+        _animationController.textWidgets[1].x = safePositions['world_x']!;
+        _animationController.textWidgets[1].y = safePositions['world_y']!;
+        
+        // Force a UI update
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('Error repositioning text: $e');
+      _showErrorSnackBar('Failed to reposition text');
     }
   }
 
@@ -541,19 +780,20 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   }
 
   List<Widget> _buildMovingTextWidgets() {
-    final textConfig = TextConfig(
-      fontSize: _controlState.fontSize,
-      fontFamily: ControlPanelConfig.fontOptions[_controlState.selectedFontIndex],
-      isBold: _controlState.isBold,
-    );
+    try {
+      final textConfig = _createCurrentTextConfig();
 
-    return _animationController.textWidgets.map((textProps) {
-      return MovingTextWidget(
-        key: ValueKey('${textProps.text}-${textConfig.fontFamily}-${textConfig.fontSize}-${textConfig.isBold}'),
-        textProps: textProps,
-        textConfig: textConfig,
-      );
-    }).toList();
+      return _animationController.textWidgets.map((textProps) {
+        return MovingTextWidget(
+          key: ValueKey('${textProps.text}-${textConfig.fontFamily}-${textConfig.fontSize}-${textConfig.isBold}'),
+          textProps: textProps,
+          textConfig: textConfig,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('Error building moving text widgets: $e');
+      return [];
+    }
   }
 
   void _updatePhysics(BoxConstraints constraints) {
@@ -633,10 +873,31 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
 
   @override
   void dispose() {
-    _animationController.dispose();
-    _resetAnimationController.dispose();
-    _sheetController.dispose();
-    _sheetSize.dispose();
+    // Dispose controllers with comprehensive error handling
+    try {
+      _animationController.dispose();
+    } catch (e) {
+      debugPrint('Error disposing animation controller: $e');
+    }
+    
+    try {
+      _resetAnimationController.dispose();
+    } catch (e) {
+      debugPrint('Error disposing reset animation controller: $e');
+    }
+    
+    try {
+      _sheetController.dispose();
+    } catch (e) {
+      debugPrint('Error disposing sheet controller: $e');
+    }
+    
+    try {
+      _sheetSize.dispose();
+    } catch (e) {
+      debugPrint('Error disposing sheet size notifier: $e');
+    }
+    
     super.dispose();
   }
 }
