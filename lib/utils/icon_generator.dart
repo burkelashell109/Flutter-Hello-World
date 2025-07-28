@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
-import 'dart:io';
 
 /// Widget to generate app icon
 class AppIconGenerator extends StatelessWidget {

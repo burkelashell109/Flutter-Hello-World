@@ -167,11 +167,23 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   void _handleInitializationError(Object error) {
     if (!mounted) return;
     
+    final errorMessage = error.toString();
+    debugPrint('Initialization error: $errorMessage');
+    
     setState(() {
-      _initializationError = error.toString();
+      _initializationError = errorMessage;
     });
     
-    _showErrorSnackBar('Initialization failed: ${error.toString()}');
+    _showErrorSnackBar('Initialization failed: $errorMessage');
+    
+    // Auto-clear error after 10 seconds
+    Timer(const Duration(seconds: 10), () {
+      if (mounted && _initializationError == errorMessage) {
+        setState(() {
+          _initializationError = null;
+        });
+      }
+    });
   }
 
   void _initializeControllers() {
@@ -714,8 +726,39 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) => _buildMainContent(constraints),
+      body: Column(
+        children: [
+          // Show error banner if there's an initialization error
+          if (_initializationError != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8.0),
+              color: Colors.red.shade100,
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Error: $_initializationError',
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => setState(() => _initializationError = null),
+                    color: Colors.red.shade700,
+                  ),
+                ],
+              ),
+            ),
+          // Main content
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) => _buildMainContent(constraints),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
