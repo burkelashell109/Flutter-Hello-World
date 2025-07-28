@@ -170,14 +170,17 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     final errorMessage = error.toString();
     debugPrint('Initialization error: $errorMessage');
     
-    setState(() {
-      _initializationError = errorMessage;
-    });
+    // Only update state if error message is different to avoid unnecessary rebuilds
+    if (_initializationError != errorMessage) {
+      setState(() {
+        _initializationError = errorMessage;
+      });
+    }
     
     _showErrorSnackBar('Initialization failed: $errorMessage');
     
-    // Auto-clear error after 10 seconds
-    Timer(const Duration(seconds: 10), () {
+    // Auto-clear error after 8 seconds (reduced from 10)
+    Timer(const Duration(seconds: 8), () {
       if (mounted && _initializationError == errorMessage) {
         setState(() {
           _initializationError = null;
@@ -726,38 +729,49 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          // Show error banner if there's an initialization error
+          // Main content
+          LayoutBuilder(
+            builder: (context, constraints) => _buildMainContent(constraints),
+          ),
+          // Show error banner if there's an initialization error (less intrusive)
           if (_initializationError != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8.0),
-              color: Colors.red.shade100,
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, color: Colors.red.shade700),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Error: $_initializationError',
-                      style: TextStyle(color: Colors.red.shade700),
-                    ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 16,
+              right: 16,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.red.shade50,
+                child: Container(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Initialization warning: $_initializationError',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => setState(() => _initializationError = null),
+                        color: Colors.red.shade700,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => setState(() => _initializationError = null),
-                    color: Colors.red.shade700,
-                  ),
-                ],
+                ),
               ),
             ),
-          // Main content
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) => _buildMainContent(constraints),
-            ),
-          ),
         ],
       ),
       floatingActionButton: _buildFloatingActionButton(),
