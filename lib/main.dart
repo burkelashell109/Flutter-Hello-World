@@ -63,8 +63,7 @@ class MovingTextApp extends StatefulWidget {
 class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateMixin {
   // Controllers and state management
   late TextAnimationController _animationController;
-  final ValueNotifier<double> _sheetSize = ValueNotifier(0.05); // Start very small
-  late DraggableScrollableController _sheetController;
+  late ScrollController _panelScrollController;
   
   // Reset animation controllers
   late AnimationController _resetAnimationController;
@@ -170,21 +169,16 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     final errorMessage = error.toString();
     debugPrint('Initialization error: $errorMessage');
     
-    // Only update state if error message is different to avoid unnecessary rebuilds
-    if (_initializationError != errorMessage) {
-      setState(() {
-        _initializationError = errorMessage;
-      });
-    }
+    // Store error for debugging but don't use it for UI (avoids layout issues)
+    _initializationError = errorMessage;
     
+    // Use SnackBar for user feedback instead of persistent banner
     _showErrorSnackBar('Initialization failed: $errorMessage');
     
-    // Auto-clear error after 8 seconds (reduced from 10)
+    // Auto-clear error after 8 seconds
     Timer(const Duration(seconds: 8), () {
       if (mounted && _initializationError == errorMessage) {
-        setState(() {
-          _initializationError = null;
-        });
+        _initializationError = null;
       }
     });
   }
@@ -192,8 +186,16 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   void _initializeControllers() {
     try {
       _animationController = TextAnimationController(vsync: this);
-      _animationController.onUpdate = () => setState(() {});
-      _sheetController = DraggableScrollableController();
+      // Ensure text remains visible by always triggering setState after initialization
+      _animationController.onUpdate = () {
+        print("Animation callback: mounted=$mounted, _controlState.speed=${_controlState.speed}, _isInitialized=$_isInitialized");
+        // Always call setState when mounted to ensure text widgets are rendered
+        if (mounted) {
+          print("setState called: ensuring text visibility");
+          setState(() {});
+        }
+      };
+      _panelScrollController = ScrollController();
       
       // Initialize reset animation controller
       _resetAnimationController = AnimationController(
@@ -207,13 +209,6 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
         parent: _resetAnimationController,
         curve: Curves.easeInOut,
       ));
-      
-      // Keep sheet size in sync with controller
-      _sheetController.addListener(() {
-        if (_sheetController.isAttached) {
-          _sheetSize.value = _sheetController.size;
-        }
-      });
     } catch (e) {
       throw Exception('Failed to initialize controllers: $e');
     }
@@ -500,12 +495,7 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     });
     
     // Immediately close the control panel and stop movement
-    _sheetSize.value = 0.05;
-    _sheetController.animateTo(
-      0.05,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    setState(() => _isPanelVisible = false);
     
     // Stop the text movement immediately
     _animationController.updateSpeed(0.0);
@@ -593,26 +583,8 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   }
 
   void _handleToggleDrawer() {
-    final currentSize = _sheetSize.value;
-    final isExpanded = currentSize > 0.15; // Lower threshold for expanded state
-    final targetSize = isExpanded ? 0.05 : 0.75; // Increased from 0.6 to 0.75 for much more space
-    
-    _sheetSize.value = targetSize;
-    _sheetController.animateTo(
-      targetSize,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
-    
-    _controlState = ControlPanelState(
-      speed: _controlState.speed,
-      fontSize: _controlState.fontSize,
-      helloColor: _controlState.helloColor,
-      worldColor: _controlState.worldColor,
-      selectedFontIndex: _controlState.selectedFontIndex,
-      isBold: _controlState.isBold,
-      drawerSize: targetSize,
-    );
+    // Since we're using a simple sliding panel now, this can just toggle visibility
+    setState(() => _isPanelVisible = !_isPanelVisible);
   }
 
   void _updateTextConfig() {
@@ -641,6 +613,8 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
 
   void _initializeTextWithSize(Size screenSize) {
     try {
+      debugPrint('Initializing text with screen size: ${screenSize.width} x ${screenSize.height}');
+      
       if (!_validateScreenSize(screenSize)) {
         throw Exception('Invalid screen size for text initialization');
       }
@@ -657,6 +631,8 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
 
       final safePositions = _validateAndClampPositions(
         positions, screenSize, helloSize, worldSize);
+
+      debugPrint('Calculated positions: $safePositions');
 
       final textWidgets = [
         TextProperties(
@@ -677,14 +653,25 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
         ),
       ];
 
+      debugPrint('Created text widgets: ${textWidgets.length}');
+      for (int i = 0; i < textWidgets.length; i++) {
+        final widget = textWidgets[i];
+        debugPrint('Widget $i: "${widget.text}" at (${widget.x}, ${widget.y}) color: ${widget.color}');
+      }
+
       _animationController.initializeTextWidgets(textWidgets);
       _animationController.updateTextConfig(textConfig);
 
       // Guarantee a rebuild after initialization
       _isInitialized = true;
-      Future.microtask(() {
-        if (mounted) setState(() {});
-      });
+      debugPrint('Text initialization complete, setting _isInitialized = true');
+      
+      // Force immediate setState to ensure text widgets are displayed
+      if (mounted) {
+        setState(() {
+          debugPrint('Final setState called after text initialization - text should now be visible');
+        });
+      }
     } catch (e) {
       debugPrint('Error initializing text with size: $e');
       _handleTextInitializationError(e);
@@ -729,50 +716,8 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Main content
-          LayoutBuilder(
-            builder: (context, constraints) => _buildMainContent(constraints),
-          ),
-          // Show error banner if there's an initialization error (less intrusive)
-          if (_initializationError != null)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 16,
-              right: 16,
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.red.shade50,
-                child: Container(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber, color: Colors.red.shade700, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Initialization warning: $_initializationError',
-                          style: TextStyle(
-                            color: Colors.red.shade700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () => setState(() => _initializationError = null),
-                        color: Colors.red.shade700,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) => _buildMainContent(constraints),
       ),
       floatingActionButton: _buildFloatingActionButton(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -825,28 +770,40 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     }
     _lastScreenSize = currentSize;
 
-    // Always build the Stack, but show a loading indicator if text widgets are empty
+    // Always build the Stack, but ensure text widgets are always visible above overlays/panels
     return Stack(
       children: [
         if (_animationController.textWidgets.isEmpty)
           const Center(child: CircularProgressIndicator()),
         ..._buildMovingTextWidgets(),
-        _buildSlidingControlPanel(constraints),
+        // Only build the control panel when visible to avoid layout errors
+        if (_isPanelVisible)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildSlidingControlPanel(constraints),
+          ),
       ],
     );
   }
 
   List<Widget> _buildMovingTextWidgets() {
     try {
+      debugPrint('Building text widgets: ${_animationController.textWidgets.length} widgets');
       final textConfig = _createCurrentTextConfig();
 
-      return _animationController.textWidgets.map((textProps) {
+      final widgets = _animationController.textWidgets.map((textProps) {
+        debugPrint('Widget: "${textProps.text}" at (${textProps.x}, ${textProps.y}) color: ${textProps.color}');
         return MovingTextWidget(
           key: ValueKey('${textProps.text}-${textConfig.fontFamily}-${textConfig.fontSize}-${textConfig.isBold}'),
           textProps: textProps,
           textConfig: textConfig,
         );
       }).toList();
+      
+      debugPrint('Returning ${widgets.length} text widgets');
+      return widgets;
     } catch (e) {
       debugPrint('Error building moving text widgets: $e');
       return [];
@@ -854,47 +811,67 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
   }
 
   void _updatePhysics(BoxConstraints constraints) {
+    debugPrint('_updatePhysics called: speed=${_controlState.speed}, isResetting=$_isResetting, isInitialized=${_animationController.isInitialized}');
+    
     // Don't apply physics during reset animation or when speed is 0
     if (_isResetting || _controlState.speed <= 0 || !_animationController.isInitialized) {
+      if (_controlState.speed <= 0 && _animationController.isInitialized) {
+        debugPrint('Physics skipped - speed is 0, but checking if text is still moving...');
+        // Check if text widgets have velocity when they shouldn't
+        for (int i = 0; i < _animationController.textWidgets.length; i++) {
+          final widget = _animationController.textWidgets[i];
+          if (widget.dx != 0 || widget.dy != 0) {
+            debugPrint('WARNING: Widget $i "${widget.text}" has velocity (${widget.dx}, ${widget.dy}) when speed is 0!');
+          }
+        }
+      }
       return;
     }
     
-    final drawerHeight = _sheetSize.value * constraints.maxHeight;
+    debugPrint('Applying physics with speed=${_controlState.speed}');
     _animationController.applyPhysics(
       screenSize: Size(constraints.maxWidth, constraints.maxHeight),
-      drawerHeight: drawerHeight,
+      drawerHeight: 0.0, // Legacy parameter, not used
     );
   }
 
   // Replace _buildControlsDrawer with a custom sliding panel
   Widget _buildSlidingControlPanel(BoxConstraints constraints) {
     final panelHeight = constraints.maxHeight * 0.5;
-    return Stack(
-      children: [
-        // Overlay for tap-off-to-hide
-        if (_isPanelVisible)
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () => setState(() => _isPanelVisible = false),
-              behavior: HitTestBehavior.opaque,
-              child: Container(color: Colors.black.withOpacity(0.2)),
-            ),
-          ),
-        // Sliding panel
-        AnimatedSlide(
-          offset: _isPanelVisible ? Offset(0, 0) : Offset(0, 1),
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeInOut,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SizedBox(
-              height: panelHeight,
+    if (!_isPanelVisible) {
+      // Always return a SizedBox with finite height to avoid layout errors
+      return SizedBox(height: panelHeight);
+    }
+
+    return SizedBox(
+      height: panelHeight,
+      child: Stack(
+        children: [
+          // Overlay for tap-off-to-hide
+          GestureDetector(
+            onTap: () => setState(() => _isPanelVisible = false),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              color: Colors.black.withOpacity(0.2),
               width: double.infinity,
-              child: _buildControlPanel(ScrollController()),
+              height: panelHeight,
             ),
           ),
-        ),
-      ],
+          // Sliding panel with entrance animation
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 350),
+            tween: Tween<double>(begin: 1.0, end: 0.0),
+            curve: Curves.easeInOut,
+            builder: (context, slideValue, child) {
+              return Transform.translate(
+                offset: Offset(0, slideValue * panelHeight),
+                child: child,
+              );
+            },
+            child: _buildControlPanel(_panelScrollController),
+          ),
+        ],
+      ),
     );
   }
 
@@ -944,15 +921,9 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     }
     
     try {
-      _sheetController.dispose();
+      _panelScrollController.dispose();
     } catch (e) {
-      debugPrint('Error disposing sheet controller: $e');
-    }
-    
-    try {
-      _sheetSize.dispose();
-    } catch (e) {
-      debugPrint('Error disposing sheet size notifier: $e');
+      debugPrint('Error disposing panel scroll controller: $e');
     }
     
     super.dispose();
