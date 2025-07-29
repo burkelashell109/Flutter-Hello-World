@@ -52,14 +52,13 @@ void main() {
 
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      // Try to find and interact with control panel elements
-      // Look for DraggableScrollableSheet which contains the control panel
-      final draggableSheet = find.byType(DraggableScrollableSheet);
-      if (draggableSheet.evaluate().isNotEmpty) {
-        // If control panel is present, try to interact with it
-        await tester.drag(draggableSheet, const Offset(0, -200));
-        await tester.pumpAndSettle();
-      }
+      // Look for the FloatingActionButton
+      final fabFinder = find.byType(FloatingActionButton);
+      expect(fabFinder, findsOneWidget);
+
+      // Tap the FAB to open the control panel
+      await tester.tap(fabFinder);
+      await tester.pumpAndSettle();
 
       // The app should continue to function without errors
       expect(find.byType(MovingTextApp), findsOneWidget);

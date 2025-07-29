@@ -1,28 +1,78 @@
+// ============================================================================
+// IMPORTS AND DEPENDENCIES
+// ============================================================================
+
 import 'package:flutter/material.dart';
 
-/// Model class representing a moving text element with physics properties.
+// ============================================================================
+// TEXT PROPERTIES MODEL - ANIMATED TEXT DATA STRUCTURE
+// ============================================================================
+
+/// Model class representing a moving text element with comprehensive physics properties.
 /// 
-/// This class encapsulates all the properties needed to render and animate
-/// a text widget, including position, velocity, content, and styling.
+/// This class serves as the core data structure for animated text elements in the
+/// moving text system. It encapsulates all properties needed for rendering,
+/// animation, and physics simulation in a single, cohesive object.
+/// 
+/// **Design Philosophy:**
+/// - **Mutable Animation Properties**: Position and velocity can be modified for real-time updates
+/// - **Immutable Display Properties**: Text content remains constant (use copyWith for changes)
+/// - **Physics Integration**: Designed specifically for collision detection and bouncing
+/// - **Performance Optimization**: Minimal object allocation during animation loops
 /// 
 /// **Key Features:**
-/// - Mutable position and velocity for real-time animation updates
-/// - Immutable text content and color properties
-/// - [copyWith] method for creating modified instances
+/// - **Real-time Updates**: Position and velocity modified in-place for 60fps animation
+/// - **Physics Simulation**: Velocity components for realistic movement and bouncing
+/// - **Flexible Styling**: Mutable color property for dynamic color transitions
+/// - **Developer-Friendly**: copyWith method for creating modified instances
 /// 
-/// **Usage Example:**
+/// **Animation Lifecycle:**
+/// 1. **Creation**: Initialize with starting position, velocity, text, and color
+/// 2. **Animation Loop**: Update x/y position based on dx/dy velocity each frame
+/// 3. **Physics**: Modify dx/dy when collision detected (bouncing behavior)
+/// 4. **Rendering**: Use x/y for Positioned widget placement, color for styling
+/// 
+/// **Performance Considerations:**
+/// - Position updates (x, y) happen 60 times per second - optimized for efficiency
+/// - Velocity updates (dx, dy) only occur during physics events - minimal overhead
+/// - Color changes are infrequent - acceptable for object allocation
+/// - Text content never changes - zero allocation after creation
+/// 
+/// **For Developers:**
 /// ```dart
+/// // Create animated text element
 /// final textProps = TextProperties(
-///   x: 100.0, y: 200.0,
-///   dx: 1.5, dy: -2.0,
-///   text: 'Hello', 
-///   color: Colors.blue,
+///   x: 100.0, y: 200.0,     // Initial position on screen
+///   dx: 1.5, dy: -2.0,      // Initial velocity (pixels per frame)
+///   text: 'Hello',          // Display text (immutable)
+///   color: Colors.blue,     // Text color (mutable for animations)
 /// );
 /// 
-/// // Update position during animation
-/// textProps.x += textProps.dx;
+/// // Animation loop (60fps)
+/// textProps.x += textProps.dx;  // Update position
 /// textProps.y += textProps.dy;
+/// 
+/// // Physics simulation (on collision)
+/// if (textProps.x <= 0) {
+///   textProps.x = 0;              // Clamp to boundary
+///   textProps.dx = -textProps.dx; // Reverse velocity (bounce)
+/// }
+/// 
+/// // Dynamic color changes
+/// textProps.color = Colors.red;   // Instant color change
+/// 
+/// // Create variants (immutable pattern)
+/// final newProps = textProps.copyWith(
+///   text: 'World!',        // Different text content
+///   color: Colors.green,   // Different color
+/// );
 /// ```
+/// 
+/// **Mathematical Properties:**
+/// - Position (x, y): Measured in logical pixels from top-left corner
+/// - Velocity (dx, dy): Pixels per frame at 60fps (positive = right/down)
+/// - Collision Detection: Boundary checking against screen edges
+/// - Physics Simulation: Elastic collision with velocity reversal
 class TextProperties {
   /// Current X position on screen (in logical pixels)
   double x;

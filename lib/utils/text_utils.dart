@@ -1,6 +1,16 @@
+// ============================================================================
+// IMPORTS AND DEPENDENCIES
+// ============================================================================
+
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
+import 'dart:math' as math; // Mathematical functions for physics calculations
+
+// Import models for text properties data structures
 import '../models/text_properties.dart';
+
+// ============================================================================
+// TEXT UTILITIES - CORE ALGORITHMS FOR TEXT ANIMATION
+// ============================================================================
 
 /// Utility class providing text measurement, positioning, and physics calculations.
 /// 

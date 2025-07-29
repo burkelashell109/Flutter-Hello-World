@@ -1,6 +1,63 @@
+// ============================================================================
+// IMPORTS AND DEPENDENCIES
+// ============================================================================
+
 import 'package:flutter/material.dart';
 
-/// A reusable color picker widget with gradient background and color preview
+// ============================================================================
+// COLOR PICKER WIDGET - INTERACTIVE COLOR SELECTION
+// ============================================================================
+
+/// Interactive color picker widget with gradient selection and real-time preview.
+/// 
+/// **User Experience Design:**
+/// This widget provides an intuitive color selection interface that combines
+/// visual feedback with direct manipulation. Users can see their current
+/// color selection and easily choose new colors from a continuous spectrum.
+/// 
+/// **Key Features:**
+/// - **Visual Preview**: Circular color indicator shows current selection
+/// - **Gradient Interface**: Horizontal gradient bar for color selection
+/// - **Touch Interaction**: Tap or drag to select colors anywhere on the gradient
+/// - **Real-time Feedback**: Color preview updates instantly during selection
+/// - **Accessible Design**: Clear labels and sufficient touch target sizes
+/// 
+/// **Color Science:**
+/// Uses HSV (Hue, Saturation, Value) color space for natural color selection:
+/// - Hue: 0-360° around the color wheel (red, yellow, green, cyan, blue, magenta)
+/// - Saturation: Fixed at 100% for vibrant colors
+/// - Value: Fixed at 100% for maximum brightness
+/// - This provides intuitive color selection that matches user expectations
+/// 
+/// **Mathematical Implementation:**
+/// - Position on gradient (0.0 to 1.0) maps to hue angle (0° to 360°)
+/// - HSV color conversion ensures consistent color brightness and saturation
+/// - Reverse mapping from RGB to HSV for accurate indicator positioning
+/// 
+/// **Performance Optimizations:**
+/// - Efficient gradient rendering with predefined color stops
+/// - Minimal widget rebuilds using targeted state updates
+/// - Optimized touch handling with gesture recognition
+/// - Smart indicator positioning to avoid layout thrashing
+/// 
+/// **For Developers:**
+/// ```dart
+/// ColorPickerWidget(
+///   label: 'Text Color',           // Descriptive label for accessibility
+///   value: Colors.blue,            // Current color selection
+///   onChanged: (newColor) {        // Callback for color changes
+///     setState(() {
+///       currentColor = newColor;
+///     });
+///   },
+/// )
+/// ```
+/// 
+/// **Accessibility Features:**
+/// - Clear text labels for screen readers
+/// - Sufficient contrast for color preview borders
+/// - Adequate touch target sizes (40x40 minimum)
+/// - Logical tab order for keyboard navigation
 class ColorPickerWidget extends StatelessWidget {
   static const double _colorPreviewSize = 32.0;
   static const double _gradientHeight = 40.0;

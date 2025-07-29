@@ -1,15 +1,64 @@
+// ============================================================================
+// IMPORTS AND DEPENDENCIES
+// ============================================================================
+
 import 'package:flutter/material.dart';
+
+// Import models for text properties and configuration
 import '../models/text_properties.dart';
+
+// Import utilities for text measurement and physics calculations
 import '../utils/text_utils.dart';
 
-/// Controller for managing text animation and movement with physics simulation
+// ============================================================================
+// TEXT ANIMATION CONTROLLER - CORE ANIMATION MANAGEMENT
+// ============================================================================
+
+/// Controller for managing text animation and movement with advanced physics simulation.
 /// 
-/// This controller handles:
-/// - Text positioning and movement with customizable speed
-/// - Physics-based collision detection and bouncing
-/// - Smooth reset animations back to center position
-/// - Font configuration changes with live updates
-/// - Color transitions for individual text elements
+/// **Primary Responsibilities:**
+/// - **Animation Management**: 60fps animation loop for smooth movement
+/// - **Physics Simulation**: Realistic collision detection and elastic bouncing
+/// - **State Management**: Centralized control of text positions, velocities, and styling
+/// - **Reset Functionality**: Smooth transitions back to initial centered state
+/// - **Configuration Updates**: Live updates to font, size, color, and speed settings
+/// 
+/// **Architecture Design:**
+/// This controller follows the single-responsibility principle by focusing solely
+/// on animation logic while delegating UI concerns to widgets and physics
+/// calculations to utility functions. This makes the code highly testable and
+/// maintainable.
+/// 
+/// **Performance Optimizations:**
+/// - Uses AnimationController with 16ms duration for 60fps updates
+/// - Minimizes object allocations during animation loops
+/// - Efficient collision detection with boundary clamping
+/// - In-place modifications of text properties for zero-allocation updates
+/// 
+/// **For Developers:**
+/// - Call [initializeTextWidgets] once to set up text elements
+/// - Use [updateSpeed] to control animation velocity
+/// - Use [updateTextConfig] for font/styling changes
+/// - Use [applyPhysics] each frame for movement and collision detection
+/// - Call [resetToCenter] or [animateToCenter] for reset functionality
+/// 
+/// **Example Usage:**
+/// ```dart
+/// final controller = TextAnimationController(vsync: this);
+/// controller.onUpdate = () => setState(() {});
+/// 
+/// // Initialize with text widgets
+/// controller.initializeTextWidgets([
+///   TextProperties(x: 100, y: 200, dx: 0, dy: 0, text: 'Hello', color: Colors.red),
+///   TextProperties(x: 300, y: 200, dx: 0, dy: 0, text: 'World!', color: Colors.blue),
+/// ]);
+/// 
+/// // Start animation
+/// controller.updateSpeed(5.0);
+/// 
+/// // Update physics each frame
+/// controller.applyPhysics(screenSize: screenSize, drawerHeight: 0);
+/// ```
 class TextAnimationController {
   // ============================================================================
   // CORE PROPERTIES AND INITIALIZATION
@@ -67,6 +116,8 @@ class TextAnimationController {
     _textWidgets.clear();
     _textWidgets.addAll(widgets);
     _isInitialized = true;
+    // Trigger initial UI update to display the text widgets
+    _triggerUIUpdate();
   }
 
   // ============================================================================

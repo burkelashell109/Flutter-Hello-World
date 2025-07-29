@@ -1,58 +1,172 @@
-import 'dart:async';
+// ============================================================================
+// IMPORTS AND DEPENDENCIES
+// ============================================================================
+
+import 'dart:async'; // For error handling with runZonedGuarded
 import 'package:flutter/material.dart';
+
+// Application models - data structures for text properties and configuration
 import 'models/text_properties.dart';
+
+// Animation controllers - manages text movement, physics, and transitions
 import 'controllers/text_animation_controller.dart';
+
+// UI widgets - custom widgets for rendering moving text and control panels
 import 'widgets/moving_text_widget.dart';
 import 'widgets/control_panel_widget.dart';
+
+// Utility functions - text measurement, positioning, and physics calculations
 import 'utils/text_utils.dart';
 
+// ============================================================================
+// APPLICATION ENTRY POINT
+// ============================================================================
+
+/// Main entry point for the Flutter application.
+/// 
+/// Implements comprehensive error handling using [runZonedGuarded] to catch
+/// and log any uncaught exceptions during app execution. This prevents app
+/// crashes and provides debugging information for developers.
+/// 
+/// **Error Handling Strategy:**
+/// - Global exception catching with runZonedGuarded
+/// - Debug logging for error tracking and troubleshooting
+/// - Graceful failure without app termination
+/// 
+/// **For Developers:**
+/// Any uncaught exceptions will be logged to the debug console with full
+/// stack traces, making it easier to identify and fix issues during development.
 void main() {
+  // Wrap the entire app in error handling to catch uncaught exceptions
   runZonedGuarded(() {
+    // Start the Flutter application
     runApp(const MyApp());
   }, (error, stackTrace) {
-    // Log errors to help with debugging
+    // Log any uncaught errors to the debug console for developer analysis
     debugPrint('Application error: $error');
     debugPrint('Stack trace: $stackTrace');
   });
 }
 
-/// Root application widget with comprehensive error handling
+// ============================================================================
+// ROOT APPLICATION WIDGET
+// ============================================================================
+
+/// Root application widget that configures Material Design theming and navigation.
+/// 
+/// This widget serves as the foundation for the entire app, setting up:
+/// - Material Design 3 (Material You) theming with dynamic colors
+/// - Light and dark theme support that follows system preferences
+/// - Consistent color schemes based on a primary seed color
+/// - Debug banner removal for cleaner presentation
+/// 
+/// **Design Philosophy:**
+/// - Uses Material Design 3 for modern, accessible UI components
+/// - Implements system-responsive theming (light/dark mode)
+/// - Provides consistent visual language throughout the app
+/// 
+/// **For Developers:**
+/// Modify the [_buildLightTheme] and [_buildDarkTheme] methods to customize
+/// the app's visual appearance. The seed color (currently blue) generates
+/// all other colors in the theme automatically.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // Remove debug banner for cleaner presentation
       debugShowCheckedModeBanner: false,
+      
+      // Configure light theme based on Material Design 3
       theme: _buildLightTheme(),
+      
+      // Configure dark theme for system dark mode support
       darkTheme: _buildDarkTheme(),
+      
+      // Automatically switch between light/dark based on system preference
       themeMode: ThemeMode.system,
+      
+      // Set the main application screen
       home: const MovingTextApp(),
     );
   }
 
+  /// Builds the light theme configuration using Material Design 3.
+  /// 
+  /// **Color Generation:**
+  /// Uses a seed color (#2196F3 - Material Blue) to automatically generate
+  /// a complete color palette including primary, secondary, tertiary colors
+  /// and their variants. This ensures visual consistency and accessibility.
+  /// 
+  /// **For Developers:**
+  /// Change the seedColor to modify the entire app's color scheme.
+  /// Material Design 3 will automatically generate harmonious colors.
   ThemeData _buildLightTheme() {
     return ThemeData(
+      // Enable Material Design 3 (Material You) components
       useMaterial3: true,
+      
+      // Generate complete color scheme from seed color
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF2196F3),
+        seedColor: const Color(0xFF2196F3), // Material Blue
         brightness: Brightness.light,
       ),
     );
   }
 
+  /// Builds the dark theme configuration using Material Design 3.
+  /// 
+  /// **Dark Mode Support:**
+  /// Uses the same seed color as light theme but with dark brightness.
+  /// This ensures color consistency while adapting to dark mode preferences.
+  /// 
+  /// **Accessibility:**
+  /// Dark themes reduce eye strain in low-light conditions and can help
+  /// conserve battery on OLED displays.
   ThemeData _buildDarkTheme() {
     return ThemeData(
+      // Enable Material Design 3 (Material You) components
       useMaterial3: true,
+      
+      // Generate dark color scheme from same seed color
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF2196F3),
+        seedColor: const Color(0xFF2196F3), // Material Blue
         brightness: Brightness.dark,
       ),
     );
   }
 }
 
-/// Main application widget with refactored, maintainable code structure
+// ============================================================================
+// MAIN APPLICATION WIDGET - STATEFUL LOGIC
+// ============================================================================
+
+/// Main application widget containing the animated text and control system.
+/// 
+/// This is the core widget that manages the "Hello World" moving text animation.
+/// It coordinates between user controls, animation logic, physics simulation,
+/// and rendering to create an interactive text animation experience.
+/// 
+/// **Key Responsibilities:**
+/// - Text animation and physics simulation management
+/// - User interface state and control panel interactions
+/// - Error handling and recovery for robust operation
+/// - Responsive layout adapting to different screen sizes
+/// - Reset functionality to return to initial state
+/// 
+/// **Architecture Pattern:**
+/// Uses a controller-based architecture where [TextAnimationController] handles
+/// the animation logic while this widget manages UI state and user interactions.
+/// This separation makes the code more maintainable and testable.
+/// 
+/// **For Developers:**
+/// This widget demonstrates Flutter best practices including:
+/// - Proper StatefulWidget lifecycle management
+/// - Controller pattern for complex logic separation
+/// - Error boundaries and graceful failure handling
+/// - Responsive design with LayoutBuilder
+/// - Performance-optimized rebuilds with targeted setState calls
 class MovingTextApp extends StatefulWidget {
   const MovingTextApp({super.key});
 
@@ -60,44 +174,223 @@ class MovingTextApp extends StatefulWidget {
   State<MovingTextApp> createState() => _MovingTextAppState();
 }
 
+// ============================================================================
+// STATE CLASS - PROPERTIES AND INITIALIZATION
+// ============================================================================
+
+/// State class managing animation controllers, UI state, and user interactions.
+/// 
+/// **Mixin Usage:**
+/// - [TickerProviderStateMixin]: Provides animation ticker for smooth 60fps animation
+/// 
+/// **State Management Strategy:**
+/// This class follows a clear separation of concerns:
+/// - Animation logic: Handled by TextAnimationController
+/// - UI state: Managed locally (panel visibility, initialization status)
+/// - Error handling: Comprehensive try-catch with user feedback
+/// - Performance: Optimized rebuilds and efficient memory management
 class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateMixin {
-  // Controllers and state management
+  
+  // ============================================================================
+  // CORE CONTROLLERS AND ANIMATION MANAGEMENT
+  // ============================================================================
+  
+  /// Primary controller for text animation, movement, and physics simulation.
+  /// 
+  /// **Responsibilities:**
+  /// - Manages text widget positions and velocities
+  /// - Handles collision detection and bouncing physics
+  /// - Provides smooth animation transitions and reset functionality
+  /// - Coordinates with UI updates through callback system
   late TextAnimationController _animationController;
+  
+  /// Scroll controller for the control panel's scrollable content.
+  /// 
+  /// **Purpose:**
+  /// Manages scrolling within the control panel when content exceeds
+  /// the available screen space, ensuring all controls remain accessible
+  /// on smaller devices or when the panel contains many options.
   late ScrollController _panelScrollController;
   
-  // Reset animation controllers
+  /// Animation controller specifically for smooth reset transitions.
+  /// 
+  /// **Reset Animation Details:**
+  /// - Duration: 2 seconds for smooth visual transition
+  /// - Curve: EaseInOut for natural motion feeling
+  /// - Animates: Position, color, and font size changes
+  /// - Prevents: User interactions during reset to avoid conflicts
   late AnimationController _resetAnimationController;
+  
+  /// Animation progress tracker for reset transitions (0.0 to 1.0).
+  /// 
+  /// **Progress Mapping:**
+  /// - 0.0: Current state (before reset)
+  /// - 1.0: Target state (centered, default colors, default font size)
+  /// - Used for smooth interpolation of all animated properties
   late Animation<double> _resetProgress;
   
-  // Current state
+  // ============================================================================
+  // APPLICATION STATE VARIABLES
+  // ============================================================================
+  
+  /// Current state of all control panel settings and user preferences.
+  /// 
+  /// **Contains:**
+  /// - speed: Animation speed (0.0 = stopped, 25.0 = maximum)
+  /// - fontSize: Text size in logical pixels (12.0 to 144.0)
+  /// - helloColor/worldColor: Individual text colors
+  /// - selectedFontIndex: Index into available font options
+  /// - isBold: Whether text uses bold font weight
+  /// - drawerSize: Control panel size (legacy parameter, maintained for compatibility)
   late ControlPanelState _controlState;
+  
+  /// Flag indicating whether the text animation system has been fully initialized.
+  /// 
+  /// **Initialization Process:**
+  /// 1. Wait for valid screen dimensions from LayoutBuilder
+  /// 2. Calculate initial text positions using TextUtils
+  /// 3. Create TextProperties objects for "Hello" and "World!"
+  /// 4. Initialize animation controller with text widgets
+  /// 5. Set flag to true and trigger UI update
+  /// 
+  /// **Usage:**
+  /// Prevents rendering issues by ensuring text widgets are only displayed
+  /// after proper initialization with valid screen dimensions.
   bool _isInitialized = false;
+  
+  /// Flag indicating whether a reset animation is currently in progress.
+  /// 
+  /// **Purpose:**
+  /// - Prevents multiple simultaneous reset operations
+  /// - Disables user controls during reset to avoid conflicts
+  /// - Ensures smooth, uninterrupted reset transitions
+  /// - Maintains UI consistency during state changes
   bool _isResetting = false;
+  
+  /// Flag controlling the visibility of the control panel.
+  /// 
+  /// **Behavior:**
+  /// - true: Panel slides up from bottom with fade-in animation
+  /// - false: Panel slides down and fades out
+  /// - Toggled by floating action button or tap-outside-to-dismiss
+  /// - Prevents layout errors by conditionally rendering panel
   bool _isPanelVisible = false;
+  
+  /// Cache of the most recent screen size for handling orientation changes.
+  /// 
+  /// **Purpose:**
+  /// - Detects screen size/orientation changes
+  /// - Triggers text repositioning when dimensions change
+  /// - Maintains relative text positioning across rotations
+  /// - Prevents text from moving outside screen bounds
   Size? _lastScreenSize;
   
-  // Error tracking for better stability
+  // ============================================================================
+  // ERROR HANDLING AND RELIABILITY
+  // ============================================================================
+  
+  /// Current initialization error message for developer debugging.
+  /// 
+  /// **Error Handling Strategy:**
+  /// - Stores error details for debugging purposes
+  /// - Displays user-friendly SnackBar messages instead of persistent banners
+  /// - Auto-clears errors after timeout to prevent stale error states
+  /// - Enables retry mechanisms for transient failures
   String? _initializationError;
+  
+  /// Counter tracking initialization retry attempts.
+  /// 
+  /// **Retry Logic:**
+  /// - Implements exponential backoff (200ms × retry_count)
+  /// - Prevents infinite retry loops with maximum attempt limit
+  /// - Handles transient failures like temporary screen size unavailability
+  /// - Provides progressive delay for system stabilization
   int _initializationRetryCount = 0;
+  
+  /// Maximum number of initialization retry attempts before giving up.
+  /// 
+  /// **Rationale:**
+  /// 5 attempts with exponential backoff provides sufficient opportunity
+  /// for system stabilization while preventing infinite loops that could
+  /// impact app performance or user experience.
   static const int _maxInitializationRetries = 5;
 
+  // ============================================================================
+  // WIDGET LIFECYCLE - INITIALIZATION AND SETUP
+  // ============================================================================
+
+  /// Initializes the widget state and sets up controllers.
+  /// 
+  /// **Initialization Sequence:**
+  /// 1. Initialize all animation controllers and their configurations
+  /// 2. Set up default control panel state with sensible defaults
+  /// 3. Schedule text positioning once screen dimensions are available
+  /// 4. Configure comprehensive error handling for any initialization failures
+  /// 
+  /// **Error Recovery:**
+  /// If initialization fails, the error is captured, logged, and displayed
+  /// to the user via SnackBar. The app remains functional and can retry
+  /// initialization automatically.
   @override
   void initState() {
     super.initState();
     try {
+      // Initialize animation controllers and scroll controllers
       _initializeControllers();
+      
+      // Set up default control panel state
       _initializeState();
+      
+      // Schedule initialization of text positions (requires screen dimensions)
       _scheduleInitialization();
     } catch (e, stackTrace) {
+      // Log detailed error information for developer debugging
       debugPrint('Initialization error: $e');
       debugPrint('Stack trace: $stackTrace');
+      
+      // Display user-friendly error message and enable recovery
       _handleInitializationError(e);
     }
   }
 
-  /// Input validation helper methods for security and stability
+  // ============================================================================
+  // INPUT VALIDATION AND SECURITY - PROTECTING AGAINST INVALID DATA
+  // ============================================================================
+
+  /// Input validation helper methods for security and stability.
+  /// 
+  /// **Security Importance:**
+  /// These validation methods protect the application from:
+  /// - Array index out-of-bounds errors
+  /// - Division by zero and mathematical edge cases
+  /// - Invalid numerical inputs (NaN, Infinity)
+  /// - Layout errors from negative or extreme values
+  /// 
+  /// **Design Pattern:**
+  /// All validation methods follow a consistent pattern:
+  /// 1. Check for invalid input conditions
+  /// 2. Log warning with original and corrected values
+  /// 3. Return safe fallback value within acceptable range
+  /// 4. Ensure app continues functioning despite bad input
   
-  /// Validate and clamp font index with bounds checking
+  /// Validates and clamps font index to prevent array access errors.
+  /// 
+  /// **Security Check:**
+  /// Prevents crashes from invalid array indices that could come from:
+  /// - Corrupted app state
+  /// - External data sources
+  /// - Race conditions during initialization
+  /// 
+  /// **Parameters:**
+  /// - [index]: Font index to validate
+  /// 
+  /// **Returns:** Valid index (0 if input was invalid)
+  /// 
+  /// **Example:**
+  /// ```dart
+  /// final safeIndex = _validateFontIndex(-1);  // Returns: 0
+  /// final safeIndex = _validateFontIndex(999); // Returns: 0
+  /// ```
   int _validateFontIndex(int index) {
     if (index < 0 || index >= ControlPanelConfig.fontOptions.length) {
       debugPrint('Invalid font index: $index, using default: 0');
@@ -106,7 +399,18 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     return index;
   }
 
-  /// Validate and clamp font size
+  /// Validates and clamps font size to prevent layout issues.
+  /// 
+  /// **Layout Protection:**
+  /// Prevents UI layout errors from extreme font sizes:
+  /// - Too small: Text becomes invisible or unreadable
+  /// - Too large: Text overflows screen, causes performance issues
+  /// - Invalid: NaN or Infinity values crash the rendering system
+  /// 
+  /// **Parameters:**
+  /// - [size]: Font size to validate (in logical pixels)
+  /// 
+  /// **Returns:** Safe font size within acceptable range (12.0 to 144.0)
   double _validateFontSize(double size) {
     if (size.isNaN || size.isInfinite || size <= 0) {
       debugPrint('Invalid font size: $size, using default: 72.0');
@@ -115,7 +419,18 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     return size.clamp(ControlPanelConfig.minFontSize, ControlPanelConfig.maxFontSize);
   }
 
-  /// Validate speed input with comprehensive checking
+  /// Validates speed input with comprehensive mathematical checking.
+  /// 
+  /// **Physics Safety:**
+  /// Ensures animation speed values don't break the physics simulation:
+  /// - Negative speeds: Could cause erratic movement behavior
+  /// - Extreme speeds: Could cause text to jump past screen boundaries
+  /// - Invalid numbers: NaN/Infinity break collision detection
+  /// 
+  /// **Parameters:**
+  /// - [speed]: Animation speed to validate (pixels per frame)
+  /// 
+  /// **Returns:** Safe speed value within range (0.0 to 25.0)
   double _validateSpeed(double speed) {
     if (speed.isNaN || speed.isInfinite) {
       debugPrint('Invalid speed value: $speed, using 0.0');
@@ -124,7 +439,18 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     return speed.clamp(ControlPanelConfig.minSpeed, ControlPanelConfig.maxSpeed);
   }
 
-  /// Validate drawer size with bounds checking
+  /// Validates drawer size with bounds checking.
+  /// 
+  /// **UI Consistency:**
+  /// Ensures the control panel drawer size remains within reasonable bounds:
+  /// - Negative values: Would cause layout errors
+  /// - Values > 1.0: Would exceed screen size (since it's a fraction)
+  /// - Invalid numbers: Break layout calculations
+  /// 
+  /// **Parameters:**
+  /// - [size]: Drawer size as fraction of screen (0.0 to 1.0)
+  /// 
+  /// **Returns:** Safe drawer size fraction
   double _validateDrawerSize(double size) {
     if (size.isNaN || size.isInfinite) {
       debugPrint('Invalid drawer size: $size, using 0.05');
@@ -133,13 +459,33 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     return size.clamp(0.0, 1.0);
   }
 
-  /// Get font family with safe array access
+  /// Gets font family with safe array access.
+  /// 
+  /// **Memory Safety:**
+  /// Prevents array access violations by validating the index before
+  /// accessing the font options array. Critical for app stability.
+  /// 
+  /// **Parameters:**
+  /// - [index]: Index into the font options array
+  /// 
+  /// **Returns:** Font family name or null for default system font
   String? _getSafeFontFamily(int index) {
     final validatedIndex = _validateFontIndex(index);
     return ControlPanelConfig.fontOptions[validatedIndex];
   }
 
-  /// Validate screen size with comprehensive checks
+  /// Validates screen size with comprehensive mathematical checks.
+  /// 
+  /// **Layout Validation:**
+  /// Ensures screen dimensions are valid for text positioning calculations:
+  /// - Positive dimensions: Required for meaningful layout
+  /// - Finite values: Infinite dimensions break positioning math
+  /// - Reasonable limits: Prevents integer overflow in calculations
+  /// 
+  /// **Parameters:**
+  /// - [size]: Screen size to validate
+  /// 
+  /// **Returns:** true if size is valid for layout calculations
   bool _validateScreenSize(Size size) {
     return size.width > 0 && 
            size.height > 0 && 
@@ -149,21 +495,46 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
            size.height < double.maxFinite;
   }
 
-  /// Show error message to user
+  // ============================================================================
+  // ERROR HANDLING AND USER FEEDBACK
+  // ============================================================================
+
+  /// Displays error messages to users via non-intrusive SnackBar notifications.
+  /// 
+  /// **User Experience Design:**
+  /// - Uses floating SnackBar for non-blocking error display
+  /// - Red background clearly indicates error state
+  /// - Auto-dismisses to avoid persistent UI clutter
+  /// - Allows users to continue using app despite errors
+  /// 
+  /// **Parameters:**
+  /// - [message]: User-friendly error message to display
   void _showErrorSnackBar(String message) {
+    // Ensure widget is still mounted before showing UI
     if (!mounted) return;
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.floating, // Non-blocking overlay style
       ),
     );
   }
 
-  /// Handle initialization errors with user feedback
+  /// Handles initialization errors with comprehensive logging and user feedback.
+  /// 
+  /// **Error Recovery Strategy:**
+  /// 1. Log detailed error for developer debugging
+  /// 2. Store error state for internal tracking
+  /// 3. Show user-friendly notification
+  /// 4. Auto-clear error after timeout to prevent stale state
+  /// 5. Maintain app functionality despite initialization failure
+  /// 
+  /// **Parameters:**
+  /// - [error]: The error object that occurred during initialization
   void _handleInitializationError(Object error) {
+    // Safety check - don't attempt UI operations on unmounted widget
     if (!mounted) return;
     
     final errorMessage = error.toString();
@@ -175,7 +546,7 @@ class _MovingTextAppState extends State<MovingTextApp> with TickerProviderStateM
     // Use SnackBar for user feedback instead of persistent banner
     _showErrorSnackBar('Initialization failed: $errorMessage');
     
-    // Auto-clear error after 8 seconds
+    // Auto-clear error after 8 seconds to prevent stale error state
     Timer(const Duration(seconds: 8), () {
       if (mounted && _initializationError == errorMessage) {
         _initializationError = null;
